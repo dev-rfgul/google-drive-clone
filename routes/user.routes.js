@@ -9,5 +9,9 @@ router.get('/test', (req, res) => {
 router.get('/register', (req, res) => {
     res.render('register');
 })
+router.post('/register', (req, res) => {
+    res.send('user registered');
+    console.log(req.body)
+})
 
 module.exports = router;
