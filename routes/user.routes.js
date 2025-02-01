@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const userModel = require('../modals/user.model');
 
 const router = express.Router();
 
@@ -15,17 +16,28 @@ router.get('/register', (req, res) => {
 router.post(
     '/register',
     [
-        body('email').trim().isEmail().isLength({min:8}).withMessage('Invalid email format'),
+        body('email').trim().isEmail().isLength({ min: 8 }).withMessage('Invalid email format'),
         body('password').trim().isLength({ min: 5 }).withMessage('Password must be at least 5 characters long'),
         body('name').trim().isLength({ min: 3 }).withMessage('Name must be at least 3 characters long'),
     ],
-    (req, res) => {
+    async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
         console.log(req.body);
         res.send('User registered');
+
+
+        const { name, email, password } = req.body;
+
+        const newUser = await userModel.create({
+            name: name,
+            email: email,
+            password: password,
+        })
+        res.json(newUser)
+
     }
 );
 
