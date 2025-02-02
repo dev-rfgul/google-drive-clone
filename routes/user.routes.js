@@ -41,13 +41,36 @@ router.post(
 
     }
 );
-router.post('/login', (req, res) => {
-    body('email'.trim().isEmail().isLength({ min: 12 }));
-    body('password'.trim().isLength({ min: 5 }));
+router.post('/login',
+    body('email').trim().isEmail().isLength({ min: 12 }));
+body('password').trim().isLength({ min: 5 });
 
-    async(req,res)=>{
-        const errors = validationResult(req)
+async (req, res) => {
+    const errors = validationResult(req)
+
+    if (!errors.isEmpty()) {
+        res.status(400).json({
+            error: errors.array(),
+            message: "invalid data",
+        })
     }
-})
+    const { email, password } = req.body;
+
+    const user = await userModel.findOne({
+        email: email,
+    })
+    if (!user) {
+        return res.status(400).json({
+            message: "no user registered with this email"
+        })
+    }
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) {
+        return res.status(400).json({
+            message: "incorrect password"
+        })
+    }
+}
+
 router.get('/login', (req, res) => res.render('login'));
 module.exports = router;
