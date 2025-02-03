@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt')
 const userModel = require('../modals/user.model');
 const { render } = require('ejs');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
@@ -41,36 +42,56 @@ router.post(
 
     }
 );
-router.post('/login',
-    body('email').trim().isEmail().isLength({ min: 12 }));
-body('password').trim().isLength({ min: 5 });
-
-async (req, res) => {
-    const errors = validationResult(req)
-
+router.post('/login', [
+    body('email').trim().isEmail().isLength({ min: 8 }),
+    body('password').trim().isLength({ min: 5 })
+], async (req, res) => {
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        res.status(400).json({
+        return res.status(400).json({
             error: errors.array(),
-            message: "invalid data",
-        })
+            message: "Invalid data",
+        });
     }
+
     const { email, password } = req.body;
 
-    const user = await userModel.findOne({
-        email: email,
-    })
-    if (!user) {
-        return res.status(400).json({
-            message: "no user registered with this email"
-        })
+    try {
+        const user = await userModel.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({ message: "No user registered with this email" });
+        }
+
+        console.log("Entered Password:", password);
+        console.log("Stored Hashed Password:", user.password);
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        console.log("Password Match:", isMatch);
+
+        if (!isMatch) {
+            return res.status(400).json({ message: "Incorrect password" });
+        }
+
+        console.log("JWT Secret:", process.env.JWT_SECRET);
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({ message: "Server error: JWT_SECRET not defined" });
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.json({ token });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
     }
-    const isMatch = await bcrypt.compare(password, user.password)
-    if (!isMatch) {
-        return res.status(400).json({
-            message: "incorrect password"
-        })
-    }
-}
+});
+
+
 
 router.get('/login', (req, res) => res.render('login'));
 module.exports = router;
